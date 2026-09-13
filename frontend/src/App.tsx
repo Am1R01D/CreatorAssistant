@@ -35,6 +35,16 @@ const stats = [
   { label: 'Published videos', value: '64', change: '+3 this month', tone: 'neutral' },
 ]
 
+const pageDescriptions: Record<string, { eyebrow: string; title: string; description: string }> = {
+  Analytics: { eyebrow: 'Channel performance', title: 'Analytics', description: 'Your Studio-style metrics will live here once YouTube is connected.' },
+  Niches: { eyebrow: 'Research workspace', title: 'Niches', description: 'Explore demand, competition and related creator opportunities.' },
+  Videos: { eyebrow: 'Content library', title: 'Videos', description: 'Search and compare your videos, then ask Creator AI about performance.' },
+  'Thumbnail Analyzer': { eyebrow: 'Creative toolkit', title: 'Thumbnail Analyzer', description: 'Upload a thumbnail to review composition, readability and audience fit.' },
+  'Title & Hashtag': { eyebrow: 'Creative toolkit', title: 'Title & Hashtag Analyzer', description: 'Test titles and hashtags against your channel context.' },
+  Leaderboard: { eyebrow: 'Creator community', title: 'Leaderboard', description: 'Track creator score, growth and consistency over time.' },
+  Settings: { eyebrow: 'Workspace preferences', title: 'Settings', description: 'Profile, connected channels and AI preferences will be managed here.' },
+}
+
 function App() {
   const [activePage, setActivePage] = useState('Dashboard')
   const [chatOpen, setChatOpen] = useState(true)
@@ -99,6 +109,7 @@ function App() {
 
         <div className="page-grid">
           <section className="page-content">
+            {activePage === 'Dashboard' ? <>
             <div className="page-heading">
               <div><p className="eyebrow">Sunday, September 13, 2026</p><h1>Good morning, Alex <span>↗</span></h1><p className="heading-copy">Here is how your channel is moving this week.</p></div>
               <button className="date-button" type="button">Last 28 days <ChevronDown size={16} /></button>
@@ -118,6 +129,18 @@ function App() {
               <article className="goal-card"><div className="section-heading compact"><div><h2>Monetization</h2><p>Long-form track</p></div><Target size={19} /></div><div className="goal-row"><div><span>Subscribers</span><strong>1,000 <small>/ 1,000</small></strong></div><div className="goal-ring"><span>100%</span></div></div><div className="goal-bar"><span style={{ width: '86%' }} /></div><div className="goal-foot"><span>Watch hours</span><strong>3,420 <small>/ 4,000</small></strong></div><div className="goal-bar"><span style={{ width: '85.5%' }} /></div><p className="muted-note">Connect your channel to replace demo progress with live metrics.</p></article>
               <article className="recent-card"><div className="section-heading compact"><div><h2>Recent videos</h2><p>Latest uploads</p></div><button className="more-button" onClick={() => selectPage('Videos')}>See all <span>→</span></button></div>{['The creator system I wish I had', 'I tested 7 hooks in 7 days', 'How I plan a month of content'].map((title, index) => <button className="video-row" key={title} onClick={() => selectPage('Videos')}><div className={`video-thumb thumb-${index + 1}`}><span>{index === 0 ? 'PLAY' : index === 1 ? 'HOOK' : 'PLAN'}</span></div><div><strong>{title}</strong><span>{index === 0 ? '12.4K' : index === 1 ? '8.7K' : '5.2K'} views · {index + 2} days ago</span></div><span className="video-arrow">↗</span></button>)}</article>
             </div>
+            </> : <>
+              <div className="page-heading page-heading-single">
+                <div><p className="eyebrow">{pageDescriptions[activePage].eyebrow}</p><h1>{pageDescriptions[activePage].title}</h1><p className="heading-copy">{pageDescriptions[activePage].description}</p></div>
+              </div>
+              <article className="workspace-empty-state">
+                <div className="empty-state-icon"><Sparkles size={22} /></div>
+                <span className="empty-state-label">Phase 1 workspace</span>
+                <h2>{pageDescriptions[activePage].title} is ready for the next build phase</h2>
+                <p>This route and its context-aware AI panel are wired into the application shell. Live data and actions will be added in the corresponding implementation phase.</p>
+                <button className="connect-button" type="button" onClick={() => selectPage('Dashboard')}>Back to Dashboard <span className="connect-plus">↗</span></button>
+              </article>
+            </>}
           </section>
 
           <aside className={`ai-panel ${chatOpen ? 'open' : ''}`}>
