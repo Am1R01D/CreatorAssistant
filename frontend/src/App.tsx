@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import {
+  ArrowRight,
   BarChart3,
   Bot,
+  Check,
   ChevronDown,
+  Eye,
+  EyeOff,
   FileVideo,
   Flame,
   Hash,
   LayoutDashboard,
+  LockKeyhole,
+  Mail,
   Menu,
   MessageCircle,
   Settings,
@@ -15,9 +21,103 @@ import {
   Trophy,
   X,
 } from 'lucide-react'
+import { supabase } from './lib/supabase'
 import './App.css'
 
 type NavItem = { label: string; icon: typeof LayoutDashboard }
+type ChatMessage = { role: 'user' | 'model'; text: string }
+
+function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>('register')
+  const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [authNotice, setAuthNotice] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase) {
+      setAuthError('Supabase is not configured. Use demo mode or add the frontend environment variables.')
+      return
+    }
+
+    setAuthError('')
+    setAuthNotice('')
+    setLoading(true)
+    const result = mode === 'register'
+      ? await supabase.auth.signUp({ email: email.trim(), password })
+      : await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    setLoading(false)
+
+    if (result.error) {
+      setAuthError(result.error.message)
+      return
+    }
+
+    if (mode === 'register' && !result.data.session) {
+      setAuthNotice('Check your email to confirm your account, then sign in.')
+      setMode('login')
+      return
+    }
+    onAuthenticated()
+  }
+
+  const continueWithGoogle = async () => {
+    if (!supabase) {
+      setAuthError('Supabase is not configured. Use demo mode or add the frontend environment variables.')
+      return
+    }
+    setAuthError('')
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
+    if (error) setAuthError(error.message)
+  }
+
+  const resetPassword = async () => {
+    if (!supabase || !email.trim()) {
+      setAuthError('Enter your email address first.')
+      return
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` })
+    if (error) setAuthError(error.message)
+    else setAuthNotice('Password reset instructions were sent to your email.')
+  }
+
+  return (
+    <main className="auth-shell">
+      <section className="auth-visual">
+        <div className="auth-brand"><div className="brand-mark">C</div><span>Creator Analyzer</span></div>
+        <div className="auth-story">
+          <p className="eyebrow">The creator operating system</p>
+          <h1>Turn your channel into a clearer next move.</h1>
+          <p>One focused workspace for the numbers, ideas and decisions behind your YouTube growth.</p>
+        </div>
+        <div className="auth-proof"><div className="proof-avatars"><span>AM</span><span>JD</span><span>+</span></div><div><strong>Built for the next upload</strong><small>Analytics, research and creator AI in one place.</small></div></div>
+      </section>
+
+      <section className="auth-panel">
+        <div className="auth-form-wrap">
+          <div className="auth-mobile-brand"><div className="brand-mark">C</div><span>Creator Analyzer</span></div>
+          <div className="auth-heading"><p className="eyebrow">{mode === 'register' ? 'Start building with intention' : 'Welcome back, creator'}</p><h2>{mode === 'register' ? 'Create your workspace' : 'Sign in to your workspace'}</h2><p>{mode === 'register' ? 'Set up your creator command center in under two minutes.' : 'Pick up where your channel strategy left off.'}</p></div>
+          <button className="google-button" type="button" onClick={continueWithGoogle}><span className="google-g">G</span> Continue with Google <ArrowRight size={16} /></button>
+          <div className="auth-divider"><span>or continue with email</span></div>
+          <form className="auth-form" onSubmit={submit}>
+            <label>Email address<div className="field-wrap"><Mail size={16} /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@yourchannel.com" required /></div></label>
+            <label>Password<div className="field-wrap"><LockKeyhole size={16} /><input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required /><button type="button" className="field-action" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label>
+            <div className="auth-options"><label className="remember-option"><input type="checkbox" /> <span>Remember me</span></label>{mode === 'login' && <button type="button" className="plain-link" onClick={resetPassword}>Forgot password?</button>}</div>
+            <button className="auth-submit" type="submit" disabled={loading}>{loading ? 'Working...' : mode === 'register' ? 'Create account' : 'Sign in'} <ArrowRight size={17} /></button>
+          </form>
+          {authError && <p className="auth-error">{authError}</p>}
+          {authNotice && <p className="auth-notice">{authNotice}</p>}
+          <p className="auth-switch">{mode === 'register' ? 'Already have an account?' : 'New to Creator Analyzer?'} <button type="button" onClick={() => { setAuthError(''); setAuthNotice(''); setMode(mode === 'register' ? 'login' : 'register') }}>{mode === 'register' ? 'Sign in' : 'Create an account'}</button></p>
+          <p className="auth-terms">By continuing, you agree to our Terms and Privacy Policy.</p>
+          <button className="demo-link" type="button" onClick={onAuthenticated}><Check size={14} /> Continue in demo mode</button>
+        </div>
+      </section>
+    </main>
+  )
+}
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard },
@@ -46,13 +146,55 @@ const pageDescriptions: Record<string, { eyebrow: string; title: string; descrip
 }
 
 function App() {
+  const [authenticated, setAuthenticated] = useState(false)
   const [activePage, setActivePage] = useState('Dashboard')
   const [chatOpen, setChatOpen] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatError, setChatError] = useState('')
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { role: 'model', text: 'Welcome back, Alex. Ask me about your channel, content ideas or the current workspace.' },
+  ])
 
   const selectPage = (page: string) => {
     setActivePage(page)
     setMobileNavOpen(false)
+  }
+
+  const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const message = chatInput.trim()
+    if (!message || chatLoading) return
+
+    const nextMessages = [...chatMessages, { role: 'user' as const, text: message }]
+    setChatMessages(nextMessages)
+    setChatInput('')
+    setChatError('')
+    setChatLoading(true)
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          history: nextMessages.slice(-10).map(({ role, text }) => ({ role, parts: [{ text }] })),
+          context: { page: activePage, format: 'Long-form', country: 'Not configured', language: 'Not configured' },
+        }),
+      })
+      const payload = await response.json() as { reply?: string; error?: string }
+      if (!response.ok) throw new Error(payload.error ?? 'AI service is unavailable')
+      setChatMessages((current) => [...current, { role: 'model', text: payload.reply ?? 'I could not generate a response.' }])
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : 'AI service is unavailable')
+    } finally {
+      setChatLoading(false)
+    }
+  }
+
+  if (!authenticated) {
+    return <AuthScreen onAuthenticated={() => setAuthenticated(true)} />
   }
 
   return (
@@ -145,7 +287,7 @@ function App() {
 
           <aside className={`ai-panel ${chatOpen ? 'open' : ''}`}>
             <div className="ai-panel-head"><div className="ai-title"><div className="ai-icon"><Bot size={18} /></div><div><strong>Creator AI</strong><span>Context-aware assistant</span></div></div><button className="icon-button" onClick={() => setChatOpen(false)} aria-label="Close Creator AI"><X size={17} /></button></div>
-            {chatOpen ? <><div className="ai-context"><span>Current context</span><strong>Dashboard <i>·</i> Alex Morgan</strong></div><div className="chat-messages"><div className="message ai-message">Welcome back, Alex. I can help you spot patterns in your channel and turn them into your next move.</div><div className="message user-message">What should I focus on this week?</div><div className="message ai-message">Your view momentum is up 14.2%. I would keep testing strong opening hooks and close the 580-hour watch-time gap.</div></div><div className="suggestions"><button>Give me 3 ideas <span>↗</span></button><button>Review my growth <span>↗</span></button></div><div className="chat-input"><input placeholder="Ask Creator AI..." aria-label="Ask Creator AI" /><button aria-label="Send message">↗</button></div><p className="ai-disclaimer">AI suggestions are a starting point, not a guarantee.</p></> : <button className="reopen-chat" onClick={() => setChatOpen(true)}><MessageCircle size={17} /> Open AI chat</button>}
+            {chatOpen ? <><div className="ai-context"><span>Current context</span><strong>{activePage} <i>·</i> Alex Morgan</strong></div><div className="chat-messages">{chatMessages.map((message, index) => <div className={`message ${message.role === 'user' ? 'user-message' : 'ai-message'}`} key={`${message.role}-${index}`}>{message.text}</div>)}{chatLoading && <div className="message ai-message">Thinking...</div>}</div><div className="suggestions"><button type="button" onClick={() => setChatInput('Give me 3 ideas for my next video')}>Give me 3 ideas <span>↗</span></button><button type="button" onClick={() => setChatInput('Review my growth')}>Review my growth <span>↗</span></button></div><form className="chat-input" onSubmit={sendChatMessage}><input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Creator AI..." aria-label="Ask Creator AI" /><button type="submit" aria-label="Send message">↗</button></form>{chatError && <p className="ai-error">{chatError}</p>}<p className="ai-disclaimer">AI suggestions are a starting point, not a guarantee.</p></> : <button className="reopen-chat" onClick={() => setChatOpen(true)}><MessageCircle size={17} /> Open AI chat</button>}
           </aside>
         </div>
       </main>
