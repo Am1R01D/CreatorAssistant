@@ -15,10 +15,12 @@ import {
   Mail,
   Menu,
   MessageCircle,
+  Search,
   Settings,
   Sparkles,
   Target,
   Trophy,
+  Upload,
   X,
 } from 'lucide-react'
 import { supabase } from './lib/supabase'
@@ -26,6 +28,20 @@ import './App.css'
 
 type NavItem = { label: string; icon: typeof LayoutDashboard }
 type ChatMessage = { role: 'user' | 'model'; text: string }
+type Niche = { title: string; category: string; growth: string; competition: string; score: string; image: string; description: string; formats: string[] }
+
+const niches: Niche[] = [
+  { title: 'Creator Education', category: 'Business & Education', growth: '+28%', competition: 'Medium', score: '92', image: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=85', description: 'Teach practical systems for creators, freelancers and small teams building an audience.', formats: ['Screen-led tutorials', 'Case study breakdowns', 'Weekly systems'] },
+  { title: 'AI Productivity', category: 'Technology', growth: '+41%', competition: 'High', score: '88', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=900&q=85', description: 'Translate fast-moving AI tools into clear workflows people can use immediately.', formats: ['Tool comparisons', 'Workflow demos', 'News with a point of view'] },
+  { title: 'Mindful Fitness', category: 'Health & Lifestyle', growth: '+19%', competition: 'Medium', score: '84', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=85', description: 'A calmer fitness niche focused on sustainable habits, mobility and confidence.', formats: ['30-day challenges', 'Form explainers', 'Quiet routines'] },
+  { title: 'Personal Finance', category: 'Money', growth: '+23%', competition: 'High', score: '81', image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=900&q=85', description: 'Make money decisions feel less intimidating with transparent, useful education.', formats: ['Beginner guides', 'Real budgets', 'Myth-busting shorts'] },
+]
+
+const analyticsRows = [
+  { title: 'The creator system I wish I had', views: '12.4K', retention: '48.2%', ctr: '6.8%', change: '+18%' },
+  { title: 'I tested 7 hooks in 7 days', views: '8.7K', retention: '44.9%', ctr: '5.9%', change: '+11%' },
+  { title: 'How I plan a month of content', views: '5.2K', retention: '39.7%', ctr: '4.8%', change: '+6%' },
+]
 
 function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('register')
@@ -154,6 +170,10 @@ function App() {
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
   const [chatError, setChatError] = useState('')
+  const [selectedNiche, setSelectedNiche] = useState<Niche | null>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState('')
+  const [titleInput, setTitleInput] = useState('')
+  const [titleChecked, setTitleChecked] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: 'model', text: 'Welcome back, Alex. Ask me about your channel, content ideas or the current workspace.' },
   ])
@@ -181,7 +201,13 @@ function App() {
 
   const selectPage = (page: string) => {
     setActivePage(page)
+    setSelectedNiche(null)
     setMobileNavOpen(false)
+  }
+
+  const handleThumbnailUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) setThumbnailPreview(URL.createObjectURL(file))
   }
 
   const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -297,17 +323,21 @@ function App() {
               <article className="goal-card"><div className="section-heading compact"><div><h2>Monetization</h2><p>Long-form track</p></div><Target size={19} /></div><div className="goal-row"><div><span>Subscribers</span><strong>1,000 <small>/ 1,000</small></strong></div><div className="goal-ring"><span>100%</span></div></div><div className="goal-bar"><span style={{ width: '86%' }} /></div><div className="goal-foot"><span>Watch hours</span><strong>3,420 <small>/ 4,000</small></strong></div><div className="goal-bar"><span style={{ width: '85.5%' }} /></div><p className="muted-note">Connect your channel to replace demo progress with live metrics.</p></article>
               <article className="recent-card"><div className="section-heading compact"><div><h2>Recent videos</h2><p>Latest uploads</p></div><button className="more-button" onClick={() => selectPage('Videos')}>See all <span>→</span></button></div>{['The creator system I wish I had', 'I tested 7 hooks in 7 days', 'How I plan a month of content'].map((title, index) => <button className="video-row" key={title} onClick={() => selectPage('Videos')}><div className={`video-thumb thumb-${index + 1}`}><span>{index === 0 ? 'PLAY' : index === 1 ? 'HOOK' : 'PLAN'}</span></div><div><strong>{title}</strong><span>{index === 0 ? '12.4K' : index === 1 ? '8.7K' : '5.2K'} views · {index + 2} days ago</span></div><span className="video-arrow">↗</span></button>)}</article>
             </div>
+            </> : activePage === 'Analytics' ? <>
+              <div className="page-heading page-heading-single"><div><p className="eyebrow">Channel performance</p><h1>Analytics</h1><p className="heading-copy">A clear read on what is earning attention and where to focus next.</p></div><button className="date-button" type="button">Last 28 days <ChevronDown size={16} /></button></div>
+              <div className="stat-grid analytics-stats">{[{ label: 'Views', value: '284.6K', change: '+14.2%', tone: 'green' }, { label: 'Watch time', value: '18.7K hrs', change: '+9.8%', tone: 'green' }, { label: 'Avg. CTR', value: '6.4%', change: '+1.2%', tone: 'red' }].map((stat) => <article className="stat-card" key={stat.label}><span className="stat-label">{stat.label}</span><strong>{stat.value}</strong><span className={`stat-change ${stat.tone}`}>{stat.change} vs previous period</span></article>)}</div>
+              <article className="chart-card"><div className="chart-header"><div><span className="chart-kicker">Views over time</span><strong>284,623</strong></div><span className="analytics-badge">Healthy momentum</span></div><div className="chart-area"><div className="chart-y-labels"><span>60k</span><span>40k</span><span>20k</span><span>0</span></div><svg viewBox="0 0 720 190" role="img" aria-label="Analytics views trend" preserveAspectRatio="none"><path d="M0 154 C52 149 63 111 108 126 S172 125 208 98 S270 117 316 82 S368 90 405 61 S461 75 504 52 S562 67 600 30 S669 51 720 16" fill="none" stroke="#ed3b35" strokeWidth="3" vectorEffect="non-scaling-stroke" /></svg></div><div className="chart-x-labels"><span>Aug 17</span><span>Aug 24</span><span>Aug 31</span><span>Sep 07</span><span>Sep 13</span></div></article>
+              <div className="section-heading"><div><h2>Top videos</h2><p>Performance leaders from the current period.</p></div></div><article className="analytics-table">{analyticsRows.map((row) => <div className="analytics-row" key={row.title}><strong>{row.title}</strong><span>{row.views}<small>views</small></span><span>{row.retention}<small>retention</small></span><span>{row.ctr}<small>CTR</small></span><b>{row.change}</b></div>)}</article>
+            </> : activePage === 'Niches' ? <>
+              <div className="page-heading page-heading-single"><div><p className="eyebrow">Research workspace</p><h1>Niches</h1><p className="heading-copy">Find a lane with demand, room to compete and formats you can actually sustain.</p></div><button className="date-button" type="button"><Search size={15} /> Explore trends</button></div>
+              <div className="niche-grid">{niches.map((niche) => <button className="niche-card" key={niche.title} type="button" onClick={() => setSelectedNiche(niche)} style={{ backgroundImage: `url(${niche.image})` }}><span className="niche-card-shade" /><span className="niche-card-content"><span className="niche-category">{niche.category}</span><strong>{niche.title}</strong><span className="niche-meta"><b>{niche.growth}</b> interest · {niche.competition} competition</span><span className="niche-score">{niche.score}<small>/100 opportunity</small></span></span></button>)}</div>
+              {selectedNiche && <div className="niche-modal-backdrop" onClick={() => setSelectedNiche(null)}><article className="niche-modal" onClick={(event) => event.stopPropagation()}><button className="icon-button niche-modal-close" onClick={() => setSelectedNiche(null)} aria-label="Close niche details"><X size={18} /></button><div className="niche-modal-image" style={{ backgroundImage: `url(${selectedNiche.image})` }}><span>{selectedNiche.category}</span></div><div className="niche-modal-body"><p className="eyebrow">Opportunity preview</p><h2>{selectedNiche.title}</h2><p>{selectedNiche.description}</p><div className="niche-detail-grid"><div><small>Interest</small><strong>{selectedNiche.growth}</strong></div><div><small>Competition</small><strong>{selectedNiche.competition}</strong></div><div><small>Score</small><strong>{selectedNiche.score}/100</strong></div></div><h3>Formats to test</h3><div className="format-list">{selectedNiche.formats.map((format) => <span key={format}>{format}</span>)}</div><button className="connect-button" type="button" onClick={() => { setChatInput(`Build a launch plan for ${selectedNiche.title}`); setSelectedNiche(null) }}>Ask Creator AI <span className="connect-plus">↗</span></button></div></article></div>}
+            </> : activePage === 'Thumbnail Analyzer' ? <>
+              <div className="page-heading page-heading-single"><div><p className="eyebrow">Creative toolkit</p><h1>Thumbnail Analyzer</h1><p className="heading-copy">Upload a thumbnail and prepare a fast visual review before you publish.</p></div></div><article className="tool-card"><div className="tool-card-heading"><div className="empty-state-icon"><Sparkles size={22} /></div><div><h2>Preview your thumbnail</h2><p>Use a 16:9 image for the clearest review.</p></div></div><label className={`upload-zone ${thumbnailPreview ? 'has-preview' : ''}`} style={thumbnailPreview ? { backgroundImage: `url(${thumbnailPreview})` } : undefined}><input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleThumbnailUpload} />{!thumbnailPreview && <><Upload size={22} /><strong>Drop an image here or browse</strong><span>PNG, JPG or WEBP up to 10MB</span></>}{thumbnailPreview && <span className="upload-change">Choose another image</span>}</label><div className="review-grid"><div><span>Readability</span><strong>Ready to review</strong></div><div><span>Composition</span><strong>Awaiting image</strong></div><div><span>Audience fit</span><strong>Ask Creator AI</strong></div></div></article>
+            </> : activePage === 'Title & Hashtag' ? <>
+              <div className="page-heading page-heading-single"><div><p className="eyebrow">Creative toolkit</p><h1>Title & Hashtag Analyzer</h1><p className="heading-copy">Shape a sharper promise before the next upload goes live.</p></div></div><article className="tool-card title-tool"><div className="tool-card-heading"><div className="empty-state-icon"><Hash size={22} /></div><div><h2>Test your next title</h2><p>Keep it specific, clear and easy to understand at a glance.</p></div></div><form onSubmit={(event) => { event.preventDefault(); setTitleChecked(Boolean(titleInput.trim())) }}><label className="tool-label">Video title<input value={titleInput} onChange={(event) => { setTitleInput(event.target.value); setTitleChecked(false) }} placeholder="e.g. I tested 7 hooks in 7 days" /></label><label className="tool-label">Hashtags<input placeholder="#youtube #creator #strategy" /></label><button className="connect-button" type="submit">Analyze title <span className="connect-plus">↗</span></button></form>{titleChecked && <div className="title-result"><div><span>Clarity</span><strong>Strong promise</strong></div><div><span>Search fit</span><strong>Good intent</strong></div><p>Try leading with the result your viewer gets, then let Creator AI generate three sharper variations.</p></div>}</article>
             </> : <>
-              <div className="page-heading page-heading-single">
-                <div><p className="eyebrow">{pageDescriptions[activePage].eyebrow}</p><h1>{pageDescriptions[activePage].title}</h1><p className="heading-copy">{pageDescriptions[activePage].description}</p></div>
-              </div>
-              <article className="workspace-empty-state">
-                <div className="empty-state-icon"><Sparkles size={22} /></div>
-                <span className="empty-state-label">Phase 1 workspace</span>
-                <h2>{pageDescriptions[activePage].title} is ready for the next build phase</h2>
-                <p>This route and its context-aware AI panel are wired into the application shell. Live data and actions will be added in the corresponding implementation phase.</p>
-                <button className="connect-button" type="button" onClick={() => selectPage('Dashboard')}>Back to Dashboard <span className="connect-plus">↗</span></button>
-              </article>
+              <div className="page-heading page-heading-single"><div><p className="eyebrow">{pageDescriptions[activePage].eyebrow}</p><h1>{pageDescriptions[activePage].title}</h1><p className="heading-copy">{pageDescriptions[activePage].description}</p></div></div><article className="workspace-empty-state"><div className="empty-state-icon"><Sparkles size={22} /></div><span className="empty-state-label">Next build phase</span><h2>{pageDescriptions[activePage].title} is queued for your connected channel</h2><p>This workspace is ready for live YouTube data and personalized AI context.</p><button className="connect-button" type="button" onClick={() => selectPage('Dashboard')}>Back to Dashboard <span className="connect-plus">↗</span></button></article>
             </>}
           </section>
 
