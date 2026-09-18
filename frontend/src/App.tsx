@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowRight,
   BarChart3,
@@ -147,6 +147,7 @@ const pageDescriptions: Record<string, { eyebrow: string; title: string; descrip
 
 function App() {
   const [authenticated, setAuthenticated] = useState(false)
+  const [authReady, setAuthReady] = useState(!supabase)
   const [activePage, setActivePage] = useState('Dashboard')
   const [chatOpen, setChatOpen] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -156,6 +157,27 @@ function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: 'model', text: 'Welcome back, Alex. Ask me about your channel, content ideas or the current workspace.' },
   ])
+
+  useEffect(() => {
+    if (!supabase) return
+
+    let mounted = true
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return
+      setAuthenticated(Boolean(data.session))
+      setAuthReady(true)
+    })
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthenticated(Boolean(session))
+      setAuthReady(true)
+    })
+
+    return () => {
+      mounted = false
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
 
   const selectPage = (page: string) => {
     setActivePage(page)
@@ -191,6 +213,10 @@ function App() {
     } finally {
       setChatLoading(false)
     }
+  }
+
+  if (!authReady) {
+    return <main className="auth-shell" />
   }
 
   if (!authenticated) {
