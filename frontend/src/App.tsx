@@ -43,6 +43,13 @@ const analyticsRows = [
   { title: 'How I plan a month of content', views: '5.2K', retention: '39.7%', ctr: '4.8%', change: '+6%' },
 ]
 
+const videoLibrary = [
+  { title: 'The creator system I wish I had', views: '12.4K', duration: '08:42', age: '2 days ago', category: 'Strategy', image: 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=700&q=85' },
+  { title: 'I tested 7 hooks in 7 days', views: '8.7K', duration: '12:18', age: '5 days ago', category: 'Experiments', image: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=700&q=85' },
+  { title: 'How I plan a month of content', views: '5.2K', duration: '14:06', age: '8 days ago', category: 'Workflow', image: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=700&q=85' },
+  { title: 'Stop chasing every new trend', views: '3.9K', duration: '09:31', age: '12 days ago', category: 'Mindset', image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=700&q=85' },
+]
+
 function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('register')
   const [showPassword, setShowPassword] = useState(false)
@@ -174,6 +181,8 @@ function App() {
   const [thumbnailPreview, setThumbnailPreview] = useState('')
   const [titleInput, setTitleInput] = useState('')
   const [titleChecked, setTitleChecked] = useState(false)
+  const [videoFilter, setVideoFilter] = useState('All videos')
+  const [videoSearch, setVideoSearch] = useState('')
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: 'model', text: 'Welcome back, Alex. Ask me about your channel, content ideas or the current workspace.' },
   ])
@@ -231,7 +240,13 @@ function App() {
           context: { page: activePage, format: 'Long-form', country: 'Not configured', language: 'Not configured' },
         }),
       })
-      const payload = await response.json() as { reply?: string; error?: string }
+      const responseText = await response.text()
+      let payload: { reply?: string; error?: string } = {}
+      try {
+        payload = JSON.parse(responseText) as { reply?: string; error?: string }
+      } catch {
+        throw new Error(responseText.trim() || `AI service returned HTTP ${response.status}`)
+      }
       if (!response.ok) throw new Error(payload.error ?? 'AI service is unavailable')
       setChatMessages((current) => [...current, { role: 'model', text: payload.reply ?? 'I could not generate a response.' }])
     } catch (error) {
@@ -296,7 +311,7 @@ function App() {
           <div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{activePage}</strong></div>
           <div className="topbar-actions">
             <span className="live-dot"><i /> Demo mode</span>
-            <button className="connect-button" type="button"><span>Connect YouTube</span><span className="connect-plus">+</span></button>
+            <button className="connect-button" type="button" onClick={() => selectPage('Settings')}><span>Connect YouTube</span><span className="connect-plus">+</span></button>
             <button className="avatar" aria-label="Open profile">AM</button>
           </div>
         </header>
@@ -328,6 +343,10 @@ function App() {
               <div className="stat-grid analytics-stats">{[{ label: 'Views', value: '284.6K', change: '+14.2%', tone: 'green' }, { label: 'Watch time', value: '18.7K hrs', change: '+9.8%', tone: 'green' }, { label: 'Avg. CTR', value: '6.4%', change: '+1.2%', tone: 'red' }].map((stat) => <article className="stat-card" key={stat.label}><span className="stat-label">{stat.label}</span><strong>{stat.value}</strong><span className={`stat-change ${stat.tone}`}>{stat.change} vs previous period</span></article>)}</div>
               <article className="chart-card"><div className="chart-header"><div><span className="chart-kicker">Views over time</span><strong>284,623</strong></div><span className="analytics-badge">Healthy momentum</span></div><div className="chart-area"><div className="chart-y-labels"><span>60k</span><span>40k</span><span>20k</span><span>0</span></div><svg viewBox="0 0 720 190" role="img" aria-label="Analytics views trend" preserveAspectRatio="none"><path d="M0 154 C52 149 63 111 108 126 S172 125 208 98 S270 117 316 82 S368 90 405 61 S461 75 504 52 S562 67 600 30 S669 51 720 16" fill="none" stroke="#ed3b35" strokeWidth="3" vectorEffect="non-scaling-stroke" /></svg></div><div className="chart-x-labels"><span>Aug 17</span><span>Aug 24</span><span>Aug 31</span><span>Sep 07</span><span>Sep 13</span></div></article>
               <div className="section-heading"><div><h2>Top videos</h2><p>Performance leaders from the current period.</p></div></div><article className="analytics-table">{analyticsRows.map((row) => <div className="analytics-row" key={row.title}><strong>{row.title}</strong><span>{row.views}<small>views</small></span><span>{row.retention}<small>retention</small></span><span>{row.ctr}<small>CTR</small></span><b>{row.change}</b></div>)}</article>
+            </> : activePage === 'Videos' ? <>
+              <div className="page-heading page-heading-single"><div><p className="eyebrow">Content library</p><h1>Videos</h1><p className="heading-copy">A focused view of your uploads, performance and next opportunities.</p></div><button className="connect-button" type="button" onClick={() => selectPage('Settings')}>Connect YouTube <span className="connect-plus">+</span></button></div>
+              <div className="video-toolbar"><div className="video-tabs">{['All videos', 'Published', 'Drafts'].map((filter) => <button key={filter} className={videoFilter === filter ? 'active' : ''} onClick={() => setVideoFilter(filter)}>{filter}</button>)}</div><label className="video-search"><Search size={15} /><input value={videoSearch} onChange={(event) => setVideoSearch(event.target.value)} placeholder="Search videos" /></label></div>
+              <div className="video-library-grid">{videoLibrary.filter((video) => video.title.toLowerCase().includes(videoSearch.toLowerCase())).map((video) => <article className="library-video-card" key={video.title}><div className="library-thumb" style={{ backgroundImage: `url(${video.image})` }}><span>{video.duration}</span></div><div className="library-video-copy"><strong>{video.title}</strong><span>{video.views} views · {video.age}</span><div><b>{video.category}</b><small>{videoFilter === 'Drafts' ? 'Draft' : 'Published'}</small></div></div></article>)}</div>
             </> : activePage === 'Niches' ? <>
               <div className="page-heading page-heading-single"><div><p className="eyebrow">Research workspace</p><h1>Niches</h1><p className="heading-copy">Find a lane with demand, room to compete and formats you can actually sustain.</p></div><button className="date-button" type="button"><Search size={15} /> Explore trends</button></div>
               <div className="niche-grid">{niches.map((niche) => <button className="niche-card" key={niche.title} type="button" onClick={() => setSelectedNiche(niche)} style={{ backgroundImage: `url(${niche.image})` }}><span className="niche-card-shade" /><span className="niche-card-content"><span className="niche-category">{niche.category}</span><strong>{niche.title}</strong><span className="niche-meta"><b>{niche.growth}</b> interest · {niche.competition} competition</span><span className="niche-score">{niche.score}<small>/100 opportunity</small></span></span></button>)}</div>
@@ -336,6 +355,8 @@ function App() {
               <div className="page-heading page-heading-single"><div><p className="eyebrow">Creative toolkit</p><h1>Thumbnail Analyzer</h1><p className="heading-copy">Upload a thumbnail and prepare a fast visual review before you publish.</p></div></div><article className="tool-card"><div className="tool-card-heading"><div className="empty-state-icon"><Sparkles size={22} /></div><div><h2>Preview your thumbnail</h2><p>Use a 16:9 image for the clearest review.</p></div></div><label className={`upload-zone ${thumbnailPreview ? 'has-preview' : ''}`} style={thumbnailPreview ? { backgroundImage: `url(${thumbnailPreview})` } : undefined}><input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleThumbnailUpload} />{!thumbnailPreview && <><Upload size={22} /><strong>Drop an image here or browse</strong><span>PNG, JPG or WEBP up to 10MB</span></>}{thumbnailPreview && <span className="upload-change">Choose another image</span>}</label><div className="review-grid"><div><span>Readability</span><strong>Ready to review</strong></div><div><span>Composition</span><strong>Awaiting image</strong></div><div><span>Audience fit</span><strong>Ask Creator AI</strong></div></div></article>
             </> : activePage === 'Title & Hashtag' ? <>
               <div className="page-heading page-heading-single"><div><p className="eyebrow">Creative toolkit</p><h1>Title & Hashtag Analyzer</h1><p className="heading-copy">Shape a sharper promise before the next upload goes live.</p></div></div><article className="tool-card title-tool"><div className="tool-card-heading"><div className="empty-state-icon"><Hash size={22} /></div><div><h2>Test your next title</h2><p>Keep it specific, clear and easy to understand at a glance.</p></div></div><form onSubmit={(event) => { event.preventDefault(); setTitleChecked(Boolean(titleInput.trim())) }}><label className="tool-label">Video title<input value={titleInput} onChange={(event) => { setTitleInput(event.target.value); setTitleChecked(false) }} placeholder="e.g. I tested 7 hooks in 7 days" /></label><label className="tool-label">Hashtags<input placeholder="#youtube #creator #strategy" /></label><button className="connect-button" type="submit">Analyze title <span className="connect-plus">↗</span></button></form>{titleChecked && <div className="title-result"><div><span>Clarity</span><strong>Strong promise</strong></div><div><span>Search fit</span><strong>Good intent</strong></div><p>Try leading with the result your viewer gets, then let Creator AI generate three sharper variations.</p></div>}</article>
+            </> : activePage === 'Settings' ? <>
+              <div className="page-heading page-heading-single"><div><p className="eyebrow">Workspace preferences</p><h1>Settings</h1><p className="heading-copy">Connect your YouTube channel securely to unlock private analytics.</p></div></div><article className="youtube-connect-card"><div className="youtube-brand"><div className="youtube-mark">▶</div><div><h2>Connect YouTube</h2><p>Use Google OAuth to authorize channel and YouTube Analytics access.</p></div></div><div className="youtube-permissions"><span>Channel overview</span><span>Video performance</span><span>Audience retention</span><span>Revenue-ready metrics</span></div><button className="connect-button" type="button" onClick={() => setChatInput('What YouTube metrics should I improve first?')}>Start secure connection <span className="connect-plus">↗</span></button><p className="muted-note">The OAuth connection will be handled by the backend. Never paste a YouTube client secret or private token into this page.</p></article>
             </> : <>
               <div className="page-heading page-heading-single"><div><p className="eyebrow">{pageDescriptions[activePage].eyebrow}</p><h1>{pageDescriptions[activePage].title}</h1><p className="heading-copy">{pageDescriptions[activePage].description}</p></div></div><article className="workspace-empty-state"><div className="empty-state-icon"><Sparkles size={22} /></div><span className="empty-state-label">Next build phase</span><h2>{pageDescriptions[activePage].title} is queued for your connected channel</h2><p>This workspace is ready for live YouTube data and personalized AI context.</p><button className="connect-button" type="button" onClick={() => selectPage('Dashboard')}>Back to Dashboard <span className="connect-plus">↗</span></button></article>
             </>}
