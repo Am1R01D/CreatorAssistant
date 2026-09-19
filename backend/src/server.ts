@@ -5,7 +5,6 @@ import helmet from 'helmet'
 import aiRouter from './routes/ai.js'
 
 const app = express()
-const port = Number(process.env.PORT ?? 4000)
 const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim())
