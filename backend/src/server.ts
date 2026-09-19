@@ -47,6 +47,5 @@ app.use((_request, response) => {
   response.status(404).json({ error: 'Route not found' })
 })
 
-app.listen(port, () => {
-  console.log(`Creator Analyzer API listening on http://localhost:${port}`)
-})
+export default app
+
