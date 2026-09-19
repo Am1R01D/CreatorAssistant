@@ -2,7 +2,7 @@ import 'dotenv/config'
 import cors from 'cors'
 import express from 'express'
 import helmet from 'helmet'
-import aiRouter from './routes/ai.js'
+import aiRouter from './routes/ai';
 
 const app = express()
 const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
