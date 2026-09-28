@@ -1,8 +1,8 @@
-
+import 'dotenv/config'
 import cors from 'cors'
 import express from 'express'
 import helmet from 'helmet'
-import aiRouter from './routes/ai';
+import aiRouter from './routes/ai'
 
 const app = express()
 const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
@@ -47,4 +47,11 @@ app.use((_request, response) => {
 })
 
 export default app
+
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT ?? 4000)
+  app.listen(port, () => {
+    console.log(`Creator Analyzer API listening on http://localhost:${port}`)
+  })
+}
 

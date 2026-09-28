@@ -2,6 +2,11 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "build": "npm --prefix frontend ci --include=dev && npm --prefix frontend run build",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev"
+  },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",

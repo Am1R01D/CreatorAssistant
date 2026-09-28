@@ -25,10 +25,14 @@ export async function generateGeminiReply(
   const model = process.env.GEMINI_MODEL ?? defaultModel
   const contextText = context ? `\nCreator context: ${JSON.stringify(context)}` : ''
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      signal: AbortSignal.timeout(25_000),
       body: JSON.stringify({
         systemInstruction: {
           parts: [{ text: `You are Creator AI, a concise assistant for YouTube creators. Never promise guaranteed views, CTR, revenue, or growth. Say when data is unavailable.${contextText}` }],
@@ -40,7 +44,8 @@ export async function generateGeminiReply(
   )
 
   if (!response.ok) {
-    throw new Error(`Gemini request failed with status ${response.status}`)
+    const details = await response.text()
+    throw new Error(`Gemini request failed with status ${response.status}: ${details.slice(0, 300)}`)
   }
 
   const payload = (await response.json()) as GeminiResponse

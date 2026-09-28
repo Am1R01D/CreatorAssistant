@@ -142,6 +142,64 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   )
 }
 
+function PasswordRecoveryScreen({ onComplete }: { onComplete: () => void }) {
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const updatePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase) {
+      setError('Supabase is not configured.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    const { error: updateError } = await supabase.auth.updateUser({ password })
+    setLoading(false)
+    if (updateError) {
+      setError(updateError.message)
+      return
+    }
+
+    window.history.replaceState({}, '', '/')
+    onComplete()
+  }
+
+  return (
+    <main className="auth-shell recovery-shell">
+      <section className="auth-visual">
+        <div className="auth-brand"><div className="brand-mark">C</div><span>Creator Analyzer</span></div>
+        <div className="auth-story">
+          <p className="eyebrow">Secure account recovery</p>
+          <h1>Choose a fresh password.</h1>
+          <p>Use at least eight characters and keep your creator workspace protected.</p>
+        </div>
+        <div className="auth-proof"><Check size={18} /><div><strong>Protected by Supabase Auth</strong><small>Your new password is sent directly to the authentication service.</small></div></div>
+      </section>
+      <section className="auth-panel">
+        <div className="auth-form-wrap recovery-form">
+          <div className="auth-mobile-brand"><div className="brand-mark">C</div><span>Creator Analyzer</span></div>
+          <div className="auth-heading"><p className="eyebrow">Password recovery</p><h2>Set a new password</h2><p>You can return to your workspace as soon as it is updated.</p></div>
+          <form className="auth-form" onSubmit={updatePassword}>
+            <label>New password<div className="field-wrap"><LockKeyhole size={16} /><input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} autoComplete="new-password" required /><button type="button" className="field-action" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label>
+            <label>Confirm password<div className="field-wrap"><LockKeyhole size={16} /><input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={8} autoComplete="new-password" required /></div></label>
+            <button className="auth-submit" type="submit" disabled={loading}>{loading ? 'Updating...' : 'Update password'} <ArrowRight size={17} /></button>
+          </form>
+          {error && <p className="auth-error">{error}</p>}
+        </div>
+      </section>
+    </main>
+  )
+}
+
 const navItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard },
   { label: 'Analytics', icon: BarChart3 },
@@ -171,6 +229,7 @@ const pageDescriptions: Record<string, { eyebrow: string; title: string; descrip
 function App() {
   const [authenticated, setAuthenticated] = useState(false)
   const [authReady, setAuthReady] = useState(!supabase)
+  const [recoveryMode, setRecoveryMode] = useState(window.location.pathname === '/reset-password')
   const [activePage, setActivePage] = useState('Dashboard')
   const [chatOpen, setChatOpen] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -197,7 +256,8 @@ function App() {
       setAuthReady(true)
     })
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true)
       setAuthenticated(Boolean(session))
       setAuthReady(true)
     })
@@ -231,12 +291,21 @@ function App() {
     setChatLoading(true)
 
     try {
+      const { data: sessionData } = supabase
+        ? await supabase.auth.getSession()
+        : { data: { session: null } }
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) throw new Error('Sign in to use Creator AI. Demo mode does not spend your AI quota.')
+
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           message,
-          history: nextMessages.slice(-10).map(({ role, text }) => ({ role, parts: [{ text }] })),
+          history: chatMessages.slice(-10).map(({ role, text }) => ({ role, parts: [{ text }] })),
           context: { page: activePage, format: 'Long-form', country: 'Not configured', language: 'Not configured' },
         }),
       })
@@ -245,7 +314,7 @@ function App() {
       try {
         payload = JSON.parse(responseText) as { reply?: string; error?: string }
       } catch {
-        throw new Error(responseText.trim() || `AI service returned HTTP ${response.status}`)
+        throw new Error(`AI service returned an invalid response (HTTP ${response.status}).`)
       }
       if (!response.ok) throw new Error(payload.error ?? 'AI service is unavailable')
       setChatMessages((current) => [...current, { role: 'model', text: payload.reply ?? 'I could not generate a response.' }])
@@ -257,7 +326,11 @@ function App() {
   }
 
   if (!authReady) {
-    return <main className="auth-shell" />
+    return <main className="auth-shell auth-loading"><span /></main>
+  }
+
+  if (recoveryMode) {
+    return <PasswordRecoveryScreen onComplete={() => { setRecoveryMode(false); setAuthenticated(true) }} />
   }
 
   if (!authenticated) {
@@ -317,7 +390,7 @@ function App() {
         </header>
 
         <div className="page-grid">
-          <section className="page-content">
+          <section className="page-content" key={activePage}>
             {activePage === 'Dashboard' ? <>
             <div className="page-heading">
               <div><p className="eyebrow">Sunday, September 13, 2026</p><h1>Good morning, Alex <span>↗</span></h1><p className="heading-copy">Here is how your channel is moving this week.</p></div>
@@ -364,7 +437,7 @@ function App() {
 
           <aside className={`ai-panel ${chatOpen ? 'open' : ''}`}>
             <div className="ai-panel-head"><div className="ai-title"><div className="ai-icon"><Bot size={18} /></div><div><strong>Creator AI</strong><span>Context-aware assistant</span></div></div><button className="icon-button" onClick={() => setChatOpen(false)} aria-label="Close Creator AI"><X size={17} /></button></div>
-            {chatOpen ? <><div className="ai-context"><span>Current context</span><strong>{activePage} <i>·</i> Alex Morgan</strong></div><div className="chat-messages">{chatMessages.map((message, index) => <div className={`message ${message.role === 'user' ? 'user-message' : 'ai-message'}`} key={`${message.role}-${index}`}>{message.text}</div>)}{chatLoading && <div className="message ai-message">Thinking...</div>}</div><div className="suggestions"><button type="button" onClick={() => setChatInput('Give me 3 ideas for my next video')}>Give me 3 ideas <span>↗</span></button><button type="button" onClick={() => setChatInput('Review my growth')}>Review my growth <span>↗</span></button></div><form className="chat-input" onSubmit={sendChatMessage}><input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Creator AI..." aria-label="Ask Creator AI" /><button type="submit" aria-label="Send message">↗</button></form>{chatError && <p className="ai-error">{chatError}</p>}<p className="ai-disclaimer">AI suggestions are a starting point, not a guarantee.</p></> : <button className="reopen-chat" onClick={() => setChatOpen(true)}><MessageCircle size={17} /> Open AI chat</button>}
+            {chatOpen ? <><div className="ai-context"><span>Current context</span><strong>{activePage} <i>·</i> Alex Morgan</strong></div><div className="chat-messages" aria-live="polite">{chatMessages.map((message, index) => <div className={`message ${message.role === 'user' ? 'user-message' : 'ai-message'}`} key={`${message.role}-${index}`}>{message.text}</div>)}{chatLoading && <div className="message ai-message typing-message" aria-label="Creator AI is thinking"><i /><i /><i /></div>}</div><div className="suggestions"><button type="button" onClick={() => setChatInput('Give me 3 ideas for my next video')}>Give me 3 ideas <span>↗</span></button><button type="button" onClick={() => setChatInput('Review my growth')}>Review my growth <span>↗</span></button></div><form className="chat-input" onSubmit={sendChatMessage}><input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask Creator AI..." aria-label="Ask Creator AI" disabled={chatLoading} /><button type="submit" aria-label="Send message" disabled={chatLoading || !chatInput.trim()}>↗</button></form>{chatError && <p className="ai-error" role="alert">{chatError}</p>}<p className="ai-disclaimer">AI suggestions are a starting point, not a guarantee.</p></> : <button className="reopen-chat" onClick={() => setChatOpen(true)}><MessageCircle size={17} /> Open AI chat</button>}
           </aside>
         </div>
       </main>
